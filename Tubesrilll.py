@@ -343,7 +343,7 @@ class ScholarshipWindow(QMainWindow):
             if widget:
                 widget.deleteLater()
 
-        for i, scholarship in enumerate(self.filtered_scholarships):
+        for i, scholarship in reversed(list(enumerate(self.filtered_scholarships))):
             self.add_scholarship_choice(scholarship, i)
 
     def add_scholarship_choice(self, scholarship, i):
@@ -453,7 +453,7 @@ class SavedWindow(QMainWindow):
             if widget:
                 widget.deleteLater()
 
-        for i, scholarship in enumerate(self.filtered_scholarships):
+        for i, scholarship in reversed(list(enumerate(self.filtered_scholarships))):
             self.add_scholarship_choice(scholarship, i)
 
     def add_scholarship_choice(self, scholarship, i):
@@ -590,7 +590,7 @@ class AdminWindow(QMainWindow):
             if widget:
                 widget.deleteLater()
 
-        for i, scholarship in enumerate(self.filtered_scholarships):
+        for i, scholarship in reversed(list(enumerate(self.filtered_scholarships))):
             self.add_scholarship_choice(scholarship, i)
 
     def add_scholarship_choice(self, scholarship, i):
@@ -622,7 +622,8 @@ class AdminWindow(QMainWindow):
     def open_add_scholarship_form(self, data):
         self.add_form = AddScholarshipForm(data)
         self.add_form.exec()
-        self.load_scholarships()
+        self.scholarships = self.load_scholarships()
+        self.update_search_results()
         self.update_scholarships_display()
     
     def logout(self):
