@@ -2,16 +2,19 @@
     {
         "username": "user",
         "password": "123",
-        "role": "user"
+        "role": "user",
+        "saved_items": []
     },
     {
         "username": "admin",
         "password": "123",
-        "role": "admin"
+        "role": "admin",
+        "saved_items": []
     },
     {
         "username": "tes",
         "password": "123",
-        "role": "user"
+        "role": "user",
+        "saved_items": []
     }
 ]
