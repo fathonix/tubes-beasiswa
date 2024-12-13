@@ -204,12 +204,6 @@ class ScholarshipDetailWindow(QMainWindow):
         self.label_title.setStyleSheet("font-size: 28px; font-weight: bold; color: #2C3E50; margin-bottom: 20px;")
         self.layout.addWidget(self.label_title)
 
-        image_label = QLabel()
-        pixmap = QPixmap(scholarship["image"])
-        image_label.setPixmap(pixmap.scaled(300, 300, Qt.KeepAspectRatio))
-        image_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(image_label)
-
         description_with_line_breaks = scholarship["long_description"].replace("\n", "<br>")
 
         label_description = QLabel(description_with_line_breaks)
@@ -224,7 +218,7 @@ class ScholarshipDetailWindow(QMainWindow):
         button_save = QPushButton()
         if scholarship["id"] in self.account["saved_items"]:
             button_save.setText("Hapus dari Disimpan")
-            button_save.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
+            button_save.setStyleSheet("background-color: red; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
         else:
             button_save.setText("Simpan")
             button_save.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
@@ -362,11 +356,6 @@ class ScholarshipWindow(QMainWindow):
         """)
         card_layout = QVBoxLayout(card)
 
-        image_label = QLabel()
-        pixmap = QPixmap(scholarship["image"]).scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        image_label.setPixmap(pixmap)
-        card_layout.addWidget(image_label, alignment=Qt.AlignCenter)
-
         label_name = QLabel(scholarship["name"])
         label_name.setStyleSheet("font-size: 18px; font-weight: bold;")
         card_layout.addWidget(label_name)
@@ -422,7 +411,7 @@ class SavedWindow(QMainWindow):
         self.label_title.setStyleSheet("font-size: 28px; font-weight: bold; margin-bottom: 20px;")
         self.top_layout.addWidget(self.label_title)
         
-        self.saved_button = QPushButton("Keluar")
+        self.saved_button = QPushButton("Kembali")
         self.saved_button.setStyleSheet("font-size: 18px; padding: 10px; background-color: #2196F3; color: white;")
         self.saved_button.clicked.connect(self.close)
         self.top_layout.addWidget(self.saved_button)
@@ -476,11 +465,6 @@ class SavedWindow(QMainWindow):
             padding: 20px;
         """)
         card_layout = QVBoxLayout(card)
-
-        image_label = QLabel()
-        pixmap = QPixmap(scholarship["image"]).scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        image_label.setPixmap(pixmap)
-        card_layout.addWidget(image_label, alignment=Qt.AlignCenter)
 
         label_name = QLabel(scholarship["name"])
         label_name.setStyleSheet("font-size: 18px; font-weight: bold;")
