@@ -74,13 +74,12 @@ class LoginWindow(QMainWindow):
         self.user_role = ""
         for account in self.accounts:
             if account["username"] == username and account["password"] == password:
-                self.logged_in = True
-                self.user_role = account["role"]
+                self.account = account
                 break
 
-        if self.user_role == "admin":
+        if self.account["role"] == "admin":
             self.open_admin_window()
-        elif self.logged_in:
+        elif self.account:
             self.open_scholarship_window()
         else:
             QMessageBox.warning(self, "Login Gagal", "Username atau password salah.")
@@ -91,7 +90,7 @@ class LoginWindow(QMainWindow):
         self.load_accounts()
 
     def open_scholarship_window(self):
-        self.scholarship_window = ScholarshipWindow()
+        self.scholarship_window = ScholarshipWindow(self.account)
         self.scholarship_window.show()
         self.close()
 
@@ -171,7 +170,8 @@ class RegisterWindow(QDialog):
         self.accounts.append({
             "username": username,
             "password": password,
-            "role": "user"
+            "role": "user",
+            "saved_items": []
         })
 
         with open("accounts.json", "w") as file:
@@ -186,8 +186,10 @@ class RegisterWindow(QDialog):
 
 # -------DESKRIPSI BEASISWA-------
 class ScholarshipDetailWindow(QMainWindow): 
-    def __init__(self, scholarship):
+    def __init__(self, scholarship, account):
         super().__init__()
+        self.scholarship = scholarship
+        self.account = account
         self.setWindowTitle(scholarship["name"])
         self.setGeometry(200, 100, 800, 600)
 
@@ -219,9 +221,19 @@ class ScholarshipDetailWindow(QMainWindow):
         
         self.button_layout = QHBoxLayout()
 
+        button_save = QPushButton()
+        if scholarship["id"] in self.account["saved_items"]:
+            button_save.setText("Hapus dari Disimpan")
+            button_save.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
+        else:
+            button_save.setText("Simpan")
+            button_save.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
+        button_save.clicked.connect(self.save_scholarship)
+        self.button_layout.addWidget(button_save)
+
         button_link = QPushButton("Masuk ke Situs Beasiswa")
         button_link.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
-        button_link.clicked.connect(lambda _: self.open_webbrowser(scholarship["link"]))
+        button_link.clicked.connect(self.open_webbrowser)
         self.button_layout.addWidget(button_link)
 
         button_back = QPushButton("Kembali")
@@ -231,8 +243,38 @@ class ScholarshipDetailWindow(QMainWindow):
 
         self.layout.addLayout(self.button_layout)
     
-    def open_webbrowser(self, url):
-        webbrowser.open(url)
+    def open_webbrowser(self):
+        webbrowser.open(self.scholarship["link"])
+    
+    def save_scholarship(self):
+        is_delete = False
+        if self.scholarship["id"] in self.account["saved_items"]:
+            self.account["saved_items"].remove(self.scholarship["id"])
+            is_delete = True
+        else:
+            self.account["saved_items"].append(self.scholarship["id"])
+
+        with open("accounts.json", "r") as file:
+            accounts = json.load(file)
+
+        found = False
+        for index, data in enumerate(accounts):
+            if data["username"] == self.account["username"]:
+                found = True
+                accounts[index] = self.account
+                break
+        
+        if not found:
+            QMessageBox.warning(self, "Galat", "Gagal menyimpan perubahan.")
+            return
+
+        with open("accounts.json", "w") as file:
+            json.dump(accounts, file, indent=4)
+
+        if is_delete:
+            QMessageBox.information(self, "Sukses", "Beasiswa berhasil dihapus.")
+        else:
+            QMessageBox.information(self, "Sukses", "Beasiswa berhasil disimpan.")
 
 # -------DAFTAR BEASISWA-------
 class ScholarshipWindow(QMainWindow):
@@ -241,8 +283,9 @@ class ScholarshipWindow(QMainWindow):
         with open("scholarships.json", "r") as file:
             self.scholarships = json.load(file)
     
-    def __init__(self):
+    def __init__(self, account):
         super().__init__()
+        self.account = account
         self.setWindowTitle("Daftar Beasiswa")
         self.setGeometry(200, 100, 800, 600)
 
@@ -251,10 +294,24 @@ class ScholarshipWindow(QMainWindow):
 
         self.layout = QVBoxLayout(self.central_widget)
         self.layout.setAlignment(Qt.AlignCenter)
+        
+        self.top_layout = QHBoxLayout()
 
         self.label_title = QLabel("Daftar Beasiswa")
         self.label_title.setStyleSheet("font-size: 28px; font-weight: bold; margin-bottom: 20px;")
-        self.layout.addWidget(self.label_title)
+        self.top_layout.addWidget(self.label_title)
+        
+        self.saved_button = QPushButton("Daftar Tersimpan")
+        self.saved_button.setStyleSheet("font-size: 18px; padding: 10px; background-color: #4CAF50; color: white;")
+        self.saved_button.clicked.connect(self.open_saved)
+        self.top_layout.addWidget(self.saved_button)
+        
+        self.logout_button = QPushButton("Keluar")
+        self.logout_button.setStyleSheet("font-size: 18px; padding: 10px; background-color: red; color: white;")
+        self.logout_button.clicked.connect(self.logout)
+        self.top_layout.addWidget(self.logout_button)
+
+        self.layout.addLayout(self.top_layout)
 
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Cari Beasiswa...")
@@ -321,7 +378,122 @@ class ScholarshipWindow(QMainWindow):
 
         button = QPushButton("Selengkapnya...")
         button.setStyleSheet("font-size: 17px; padding: 5px;")
-        button.clicked.connect(lambda: self.open_scholarship_detail(scholarship))
+        button.clicked.connect(lambda: self.open_scholarship_detail(scholarship, self.account))
+        card_layout.addWidget(button)
+
+        self.scroll_layout.addWidget(card)
+
+    def open_scholarship_detail(self, scholarship, account):
+        self.detail_window = ScholarshipDetailWindow(scholarship, account)
+        self.detail_window.show()
+
+    def open_saved(self):
+        self.saved_window = SavedWindow(self.account)
+        self.saved_window.show()
+    
+    def logout(self):
+        self.login_window = LoginWindow()
+        self.login_window.show()
+        self.close()
+
+# -------DAFTAR BEASISWA TERSIMPAN-------
+class SavedWindow(QMainWindow):
+    
+    def load_scholarships(self):
+        with open("scholarships.json", "r") as file:
+            data = json.load(file)
+            self.scholarships = list(filter(lambda x: x["id"] in self.account["saved_items"], data))
+    
+    def __init__(self, account):
+        super().__init__()
+        self.account = account
+        self.setWindowTitle("Daftar Beasiswa Tersimpan")
+        self.setGeometry(200, 100, 800, 600)
+
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+
+        self.layout = QVBoxLayout(self.central_widget)
+        self.layout.setAlignment(Qt.AlignCenter)
+        
+        self.top_layout = QHBoxLayout()
+
+        self.label_title = QLabel("Daftar Tersimpan")
+        self.label_title.setStyleSheet("font-size: 28px; font-weight: bold; margin-bottom: 20px;")
+        self.top_layout.addWidget(self.label_title)
+        
+        self.saved_button = QPushButton("Keluar")
+        self.saved_button.setStyleSheet("font-size: 18px; padding: 10px; background-color: #2196F3; color: white;")
+        self.saved_button.clicked.connect(self.close)
+        self.top_layout.addWidget(self.saved_button)
+        self.layout.addLayout(self.top_layout)
+
+        self.search_bar = QLineEdit()
+        self.search_bar.setPlaceholderText("Cari Beasiswa...")
+        self.search_bar.setStyleSheet("font-size: 16px; padding: 10px;")
+        self.layout.addWidget(self.search_bar)
+
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_content = QWidget(self)
+        self.scroll_area.setWidget(self.scroll_content)
+
+        self.scroll_layout = QVBoxLayout(self.scroll_content)
+
+        try:
+            self.load_scholarships()
+        except Exception as e:
+            print(e)
+            QMessageBox.warning(self, "Galat", "Gagal memuat data beasiswa")
+
+        self.filtered_scholarships = self.scholarships
+
+        self.update_scholarships_display()
+
+        self.layout.addWidget(self.scroll_area)
+        self.search_bar.textChanged.connect(self.update_search_results)
+
+    def update_search_results(self):
+        search_query = self.search_bar.text().lower()
+        self.filtered_scholarships = [scholarship for scholarship in self.scholarships if search_query in scholarship["name"].lower()]
+        self.update_scholarships_display()
+
+    def update_scholarships_display(self):
+        for i in reversed(range(self.scroll_layout.count())):
+            widget = self.scroll_layout.itemAt(i).widget()
+            if widget:
+                widget.deleteLater()
+
+        for i, scholarship in enumerate(self.filtered_scholarships):
+            self.add_scholarship_choice(scholarship, i)
+
+    def add_scholarship_choice(self, scholarship, i):
+        card = QWidget()
+        card.setStyleSheet("""
+            background-color: #fff;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            padding: 20px;
+        """)
+        card_layout = QVBoxLayout(card)
+
+        image_label = QLabel()
+        pixmap = QPixmap(scholarship["image"]).scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        image_label.setPixmap(pixmap)
+        card_layout.addWidget(image_label, alignment=Qt.AlignCenter)
+
+        label_name = QLabel(scholarship["name"])
+        label_name.setStyleSheet("font-size: 18px; font-weight: bold;")
+        card_layout.addWidget(label_name)
+
+        label_description = QLabel(scholarship["short_description"])
+        label_description.setStyleSheet("font-size: 14px; color: #555;")
+        label_description.setWordWrap(True)
+        card_layout.addWidget(label_description)
+
+        button = QPushButton("Selengkapnya...")
+        button.setStyleSheet("font-size: 17px; padding: 5px;")
+        button.clicked.connect(lambda: self.open_scholarship_detail())
         card_layout.addWidget(button)
 
         self.scroll_layout.addWidget(card)
@@ -347,12 +519,6 @@ class AdminDetailWindow(QMainWindow):
         self.label_title = QLabel(scholarship["name"])
         self.label_title.setStyleSheet("font-size: 28px; font-weight: bold; color: #2C3E50; margin-bottom: 20px;")
         self.layout.addWidget(self.label_title)
-
-        # image_label = QLabel()
-        # pixmap = QPixmap(scholarship["image"])
-        # image_label.setPixmap(pixmap.scaled(300, 300, Qt.KeepAspectRatio))
-        # image_label.setAlignment(Qt.AlignCenter)
-        # self.layout.addWidget(image_label)
 
         description_with_line_breaks = scholarship["long_description"].replace("\n", "<br>")
 
@@ -391,11 +557,20 @@ class AdminWindow(QMainWindow):
         self.label_title = QLabel("Manajemen Beasiswa")
         self.label_title.setStyleSheet("font-size: 28px; font-weight: bold; margin-bottom: 20px;")
         self.layout.addWidget(self.label_title)
+        
+        self.top_layout = QHBoxLayout()
 
         self.button_add = QPushButton("Tambah Beasiswa")
         self.button_add.setStyleSheet("font-size: 18px; padding: 10px; background-color: #4CAF50; color: white;")
         self.button_add.clicked.connect(self.open_add_scholarship_form)
-        self.layout.addWidget(self.button_add)
+        self.top_layout.addWidget(self.button_add)
+        
+        self.logout_button = QPushButton("Keluar")
+        self.logout_button.setStyleSheet("font-size: 18px; padding: 10px; background-color: red; color: white;")
+        self.logout_button.clicked.connect(self.logout)
+        self.top_layout.addWidget(self.logout_button)
+        
+        self.layout.addLayout(self.top_layout)
 
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Cari Beasiswa...")
@@ -444,11 +619,6 @@ class AdminWindow(QMainWindow):
         """)
         card_layout = QVBoxLayout(card)
 
-        # image_label = QLabel()
-        # pixmap = QPixmap(scholarship["image"]).scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        # image_label.setPixmap(pixmap)
-        # card_layout.addWidget(image_label, alignment=Qt.AlignCenter)
-
         label_name = QLabel(scholarship["name"])
         label_name.setStyleSheet("font-size: 18px; font-weight: bold;")
         card_layout.addWidget(label_name)
@@ -470,6 +640,11 @@ class AdminWindow(QMainWindow):
         self.add_form.exec()
         self.load_scholarships()
         self.update_scholarships_display()
+    
+    def logout(self):
+        self.login_window = LoginWindow()
+        self.login_window.show()
+        self.close()
 
 # -------FORM TAMBAH BEASISWA-------
 class AddScholarshipForm(QDialog):
