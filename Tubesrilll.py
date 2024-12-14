@@ -185,7 +185,7 @@ class RegisterWindow(QDialog):
         self.close()
 
 # -------DESKRIPSI BEASISWA-------
-class ScholarshipDetailWindow(QMainWindow): 
+class ScholarshipDetailWindow(QDialog): 
     def __init__(self, scholarship, account):
         super().__init__()
         self.scholarship = scholarship
@@ -193,10 +193,7 @@ class ScholarshipDetailWindow(QMainWindow):
         self.setWindowTitle(scholarship["name"])
         self.setGeometry(200, 100, 800, 600)
 
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-
-        self.layout = QVBoxLayout(self.central_widget)
+        self.layout = QVBoxLayout()
         self.layout.setSpacing(20)
         self.layout.setContentsMargins(20, 20, 20, 20)
 
@@ -215,27 +212,23 @@ class ScholarshipDetailWindow(QMainWindow):
         
         self.button_layout = QHBoxLayout()
 
-        button_save = QPushButton()
-        if scholarship["id"] in self.account["saved_items"]:
-            button_save.setText("Hapus dari Disimpan")
-            button_save.setStyleSheet("background-color: red; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
-        else:
-            button_save.setText("Simpan")
-            button_save.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
-        button_save.clicked.connect(self.save_scholarship)
-        self.button_layout.addWidget(button_save)
+        self.button_save = QPushButton()
+        self.toggle_save_button()
+        self.button_save.clicked.connect(self.save_scholarship)
+        self.button_layout.addWidget(self.button_save)
 
-        button_link = QPushButton("Masuk ke Situs Beasiswa")
-        button_link.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
-        button_link.clicked.connect(self.open_webbrowser)
-        self.button_layout.addWidget(button_link)
+        self.button_link = QPushButton("Masuk ke Situs Beasiswa")
+        self.button_link.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
+        self.button_link.clicked.connect(self.open_webbrowser)
+        self.button_layout.addWidget(self.button_link)
 
-        button_back = QPushButton("Kembali")
-        button_back.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
-        button_back.clicked.connect(self.close)
-        self.button_layout.addWidget(button_back)
+        self.button_back = QPushButton("Kembali")
+        self.button_back.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
+        self.button_back.clicked.connect(self.close)
+        self.button_layout.addWidget(self.button_back)
 
         self.layout.addLayout(self.button_layout)
+        self.setLayout(self.layout)
     
     def open_webbrowser(self):
         webbrowser.open(self.scholarship["link"])
@@ -269,6 +262,15 @@ class ScholarshipDetailWindow(QMainWindow):
             QMessageBox.information(self, "Sukses", "Beasiswa berhasil dihapus.")
         else:
             QMessageBox.information(self, "Sukses", "Beasiswa berhasil disimpan.")
+        self.toggle_save_button()
+
+    def toggle_save_button(self):
+        if self.scholarship["id"] in self.account["saved_items"]:
+            self.button_save.setText("Hapus dari Disimpan")
+            self.button_save.setStyleSheet("background-color: red; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
+        else:
+            self.button_save.setText("Simpan")
+            self.button_save.setStyleSheet("background-color: #2196F3; color: white; font-size: 16px; padding: 10px; border-radius: 5px;")
 
 # -------DAFTAR BEASISWA-------
 class ScholarshipWindow(QMainWindow):
@@ -367,13 +369,13 @@ class ScholarshipWindow(QMainWindow):
 
         button = QPushButton("Selengkapnya...")
         button.setStyleSheet("font-size: 17px; padding: 5px;")
-        button.clicked.connect(lambda: self.open_scholarship_detail(scholarship, self.account))
+        button.clicked.connect(lambda: self.open_scholarship_detail(scholarship))
         card_layout.addWidget(button)
 
         self.scroll_layout.addWidget(card)
 
-    def open_scholarship_detail(self, scholarship, account):
-        self.detail_window = ScholarshipDetailWindow(scholarship, account)
+    def open_scholarship_detail(self, scholarship):
+        self.detail_window = ScholarshipDetailWindow(scholarship, self.account)
         self.detail_window.show()
 
     def open_saved(self):
@@ -477,14 +479,17 @@ class SavedWindow(QMainWindow):
 
         button = QPushButton("Selengkapnya...")
         button.setStyleSheet("font-size: 17px; padding: 5px;")
-        button.clicked.connect(lambda: self.open_scholarship_detail())
+        button.clicked.connect(lambda: self.open_scholarship_detail(scholarship))
         card_layout.addWidget(button)
 
         self.scroll_layout.addWidget(card)
 
     def open_scholarship_detail(self, scholarship):
-        self.detail_window = ScholarshipDetailWindow(scholarship)
-        self.detail_window.show()
+        self.detail_window = ScholarshipDetailWindow(scholarship, self.account)
+        self.detail_window.exec()
+        self.load_scholarships()
+        self.update_search_results()
+        self.update_scholarships_display()
 
 # -------DESKRIPSI BEASISWA-------
 class AdminDetailWindow(QMainWindow): 
@@ -525,7 +530,7 @@ class AdminWindow(QMainWindow):
     
     def load_scholarships(self):
         with open("scholarships.json", "r") as file:
-            return json.load(file)
+            self.scholarships = json.load(file)
     
     def __init__(self):
         super().__init__()
@@ -569,7 +574,7 @@ class AdminWindow(QMainWindow):
         self.scroll_layout = QVBoxLayout(self.scroll_content)
 
         try:
-            self.scholarships = self.load_scholarships()
+            self.load_scholarships()
         except json.JSONDecodeError:
             QMessageBox.warning(self, "Galat", "Gagal memuat data beasiswa")
 
@@ -622,7 +627,7 @@ class AdminWindow(QMainWindow):
     def open_add_scholarship_form(self, data):
         self.add_form = AddScholarshipForm(data)
         self.add_form.exec()
-        self.scholarships = self.load_scholarships()
+        self.load_scholarships()
         self.update_search_results()
         self.update_scholarships_display()
     
